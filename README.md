@@ -8,7 +8,7 @@ The initial scenarios are cafe ordering, shopping, and asking directions. The ca
 
 ## What happens in a rescue
 
-1. The learner asks again: “What, sorry?”
+1. The learner asks again: “What, sorry?"(or press `w` key)
 2. The tutor repeats the previous phrase and reassures them.
 3. Repeated requests progress to slower speech, simpler English, then an offer to reveal text.
 4. “Got it”, “I understand”, or a relevant answer resumes the saved conversation.
