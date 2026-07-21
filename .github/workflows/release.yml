@@ -1,0 +1,65 @@
+name: Release binaries
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }} binary
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos
+            runner: macos-latest
+          - platform: linux
+            runner: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Linux audio dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes libasound2-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binary
+        run: cargo build --locked --release
+
+      - name: Archive binary
+        shell: bash
+        run: |
+          archive_name="what-sorry-${{ github.ref_name }}-${{ matrix.platform }}.tar.gz"
+          tar -C target/release -czf "$archive_name" what-sorry
+          echo "ARCHIVE_NAME=$archive_name" >> "$GITHUB_ENV"
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}-binary
+          path: ${{ env.ARCHIVE_NAME }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release archives
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*.tar.gz
