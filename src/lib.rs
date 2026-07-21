@@ -65,7 +65,7 @@ pub fn run(cli: Cli) -> Result<()> {
 
     print_line(format!("What, Sorry? — {}", cli.scenario.title()))?;
     print_line("Speak after each prompt. Say 'What, sorry?' whenever you need help.")?;
-    print_line("Press w to repeat, s to show or hide AI text, and q or Ctrl-C to quit.")?;
+    print_shortcuts()?;
     let opening = request_tutor(&mut latest_phrase_display, || server.opening(&session))?;
     speak_response(&speaker, &mut capture, &mut session, opening)?;
     while running.load(Ordering::Acquire) && !session.is_complete() {
@@ -111,6 +111,13 @@ fn print_line(text: impl Display) -> Result<()> {
     let mut output = std::io::stdout().lock();
     write!(output, "\r{text}\r\n").context("Could not write terminal output")?;
     output.flush().context("Could not flush terminal output")
+}
+
+fn print_shortcuts() -> Result<()> {
+    print_line("Keyboard shortcuts")?;
+    print_line("  [w] Ask again / repeat the current AI phrase")?;
+    print_line("  [s] Show or hide the latest AI text")?;
+    print_line("  [q] Quit  •  [Ctrl-C] Quit")
 }
 
 #[derive(Default)]
