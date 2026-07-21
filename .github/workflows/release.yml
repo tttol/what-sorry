@@ -10,41 +10,59 @@ permissions:
 
 jobs:
   build:
-    name: Build ${{ matrix.platform }} binary
-    runs-on: ${{ matrix.runner }}
+    name: Build ${{ matrix.target }} binary
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: macos
-            runner: macos-latest
-          - platform: linux
-            runner: ubuntu-latest
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            pkg_config_path: /usr/lib/aarch64-linux-gnu/pkgconfig
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
       - name: Install Linux audio dependencies
-        if: runner.os == 'Linux'
+        if: startsWith(matrix.target, 'x86_64-unknown-linux')
         run: sudo apt-get update && sudo apt-get install --yes libasound2-dev
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Linux ARM64 cross-compilation tools
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo dpkg --add-architecture arm64
+          sudo apt-get update
+          sudo apt-get install --yes gcc-aarch64-linux-gnu libasound2-dev:arm64
 
       - name: Build release binary
-        run: cargo build --locked --release
+        run: cargo build --locked --release --target ${{ matrix.target }}
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          PKG_CONFIG_ALLOW_CROSS: "1"
+          PKG_CONFIG_PATH: ${{ matrix.pkg_config_path }}
 
       - name: Archive binary
         shell: bash
         run: |
-          archive_name="what-sorry-${{ github.ref_name }}-${{ matrix.platform }}.tar.gz"
-          tar -C target/release -czf "$archive_name" what-sorry
+          archive_name="what-sorry-${{ github.ref_name }}-${{ matrix.target }}.tar.gz"
+          tar -C target/${{ matrix.target }}/release -czf "$archive_name" what-sorry
           echo "ARCHIVE_NAME=$archive_name" >> "$GITHUB_ENV"
 
       - name: Upload release archive
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }}-binary
+          name: ${{ matrix.target }}-binary
           path: ${{ env.ARCHIVE_NAME }}
           if-no-files-found: error
 
